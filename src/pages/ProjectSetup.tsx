@@ -6,17 +6,70 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Upload, Link, FileText } from "lucide-react";
+import { Upload, Link, FileText, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+type Source = {
+  id: string;
+  type: 'url' | 'file';
+  value: string;
+  name?: string;
+};
 
 export const ProjectSetup = () => {
   const [transcript, setTranscript] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [currentUrl, setCurrentUrl] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const addUrlSource = () => {
+    if (!currentUrl.trim()) return;
+    
+    const newSource: Source = {
+      id: crypto.randomUUID(),
+      type: 'url',
+      value: currentUrl,
+      name: currentUrl,
+    };
+    
+    setSources([...sources, newSource]);
+    setCurrentUrl("");
+    
+    toast({
+      title: "URL added",
+      description: "URL source has been added successfully.",
+    });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      const newSource: Source = {
+        id: crypto.randomUUID(),
+        type: 'file',
+        value: selectedFile.name,
+        name: selectedFile.name,
+      };
+      
+      setSources([...sources, newSource]);
+      
+      toast({
+        title: "File uploaded",
+        description: `${selectedFile.name} has been uploaded successfully.`,
+      });
+    }
+  };
+
+  const removeSource = (id: string) => {
+    setSources(sources.filter(source => source.id !== id));
+    toast({
+      title: "Source removed",
+      description: "Source has been removed successfully.",
+    });
+  };
 
   const handleExtractKeyPoints = async () => {
     if (!transcript.trim()) {
@@ -32,25 +85,13 @@ export const ProjectSetup = () => {
 
     // Simulate AI processing
     setTimeout(() => {
-      // Store the transcript and source for later use
+      // Store the transcript and sources for later use
       localStorage.setItem("transcript", transcript);
-      if (sourceUrl) localStorage.setItem("sourceUrl", sourceUrl);
-      if (file) localStorage.setItem("fileName", file.name);
+      localStorage.setItem("sources", JSON.stringify(sources));
       
       setIsProcessing(false);
       navigate("/key-points");
     }, 2000);
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      toast({
-        title: "File uploaded",
-        description: `${selectedFile.name} has been uploaded successfully.`,
-      });
-    }
   };
 
   return (
@@ -73,10 +114,10 @@ export const ProjectSetup = () => {
           </p>
         </div>
 
-        {/* Supporting Source */}
+        {/* Supporting Sources */}
         <div className="space-y-4">
           <Label className="text-base font-medium">
-            Attach Supporting Source (Optional)
+            Supporting Sources (Optional)
           </Label>
           
           <div className="grid md:grid-cols-2 gap-4">
@@ -96,12 +137,6 @@ export const ProjectSetup = () => {
                     className="hidden"
                   />
                 </Label>
-                {file && (
-                  <div className="mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                    <FileText className="w-4 h-4" />
-                    {file.name}
-                  </div>
-                )}
               </div>
             </Card>
 
@@ -112,15 +147,60 @@ export const ProjectSetup = () => {
                   <Link className="w-4 h-4" />
                   Add URL Link
                 </div>
-                <Input
-                  value={sourceUrl}
-                  onChange={(e) => setSourceUrl(e.target.value)}
-                  placeholder="https://example.com/article"
-                  type="url"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    value={currentUrl}
+                    onChange={(e) => setCurrentUrl(e.target.value)}
+                    placeholder="https://example.com/article"
+                    type="url"
+                    onKeyPress={(e) => e.key === 'Enter' && addUrlSource()}
+                  />
+                  <Button 
+                    onClick={addUrlSource} 
+                    disabled={!currentUrl.trim()}
+                    size="icon"
+                    variant="outline"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </Card>
           </div>
+
+          {/* Sources List */}
+          {sources.length > 0 && (
+            <Card className="p-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Added Sources</Label>
+                <div className="space-y-2">
+                  {sources.map((source) => (
+                    <div key={source.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        {source.type === 'file' ? (
+                          <FileText className="w-4 h-4 text-muted-foreground" />
+                        ) : (
+                          <Link className="w-4 h-4 text-muted-foreground" />
+                        )}
+                        <span className="text-sm font-medium">{source.name}</span>
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {source.type}
+                        </span>
+                      </div>
+                      <Button
+                        onClick={() => removeSource(source.id)}
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Action Button */}
