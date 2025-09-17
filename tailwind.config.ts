@@ -22,6 +22,13 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
+        },
+        editorial: {
+          background: "var(--editorial-background)",
+          step: "hsl(var(--workflow-step))",
+          completed: "hsl(var(--workflow-step-completed))",
+          focus: "hsl(var(--content-focus))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -62,6 +69,12 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        editorial: "var(--shadow-editorial)",
+      },
+      transitionTimingFunction: {
+        smooth: "var(--transition-smooth)",
       },
       keyframes: {
         "accordion-down": {
