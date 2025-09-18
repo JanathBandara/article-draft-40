@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Download, FileText, Code, RotateCcw, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type Source = {
   id: string;
@@ -17,11 +18,10 @@ type Source = {
 };
 
 type Quote = {
-  quote: string;
+  text: string;
+  verified: boolean;
   source: string;
-  found: boolean;
   snippet?: string;
-  lineNumber?: number;
 };
 
 export const ReviewExport = () => {
@@ -33,70 +33,69 @@ export const ReviewExport = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const savedDraft = localStorage.getItem("generatedDraft") || "";
-    const savedSources = JSON.parse(localStorage.getItem("sources") || "[]");
-    const transcript = localStorage.getItem("transcript") || "";
-    
-    setDraft(savedDraft);
-    setSources(savedSources);
+    // Load draft and metadata from localStorage
+    const storedDraft = localStorage.getItem('generatedDraft');
+    const storedTone = localStorage.getItem('selectedTone');
+    const storedSources = localStorage.getItem('sources');
+    const transcript = localStorage.getItem('transcript');
 
-    // Enhanced quote extraction and verification
-    const quoteRegex = /"([^"]+)"/g;
-    const foundQuotes: Quote[] = [];
-    let match;
-    
-    while ((match = quoteRegex.exec(savedDraft)) !== null) {
-      const quote = match[1];
+    if (storedDraft) {
+      setDraft(storedDraft);
       
-      // Check against transcript
-      let found = false;
-      let snippet = "";
-      let source = "Not Found";
-      let lineNumber: number | undefined;
-      
-      if (transcript.toLowerCase().includes(quote.toLowerCase())) {
-        found = true;
-        source = "Interview Transcript";
-        
-        // Find the surrounding context (snippet)
-        const transcriptLower = transcript.toLowerCase();
-        const quoteLower = quote.toLowerCase();
-        const quoteIndex = transcriptLower.indexOf(quoteLower);
-        
-        if (quoteIndex !== -1) {
-          const start = Math.max(0, quoteIndex - 50);
-          const end = Math.min(transcript.length, quoteIndex + quote.length + 50);
-          snippet = "..." + transcript.substring(start, end) + "...";
-          
-          // Estimate line number
-          const beforeQuote = transcript.substring(0, quoteIndex);
-          lineNumber = beforeQuote.split('\n').length;
+      // Use AI-powered quote verification
+      verifyQuotes(storedDraft, transcript, storedSources);
+    }
+
+    // Load sources for attribution
+    if (storedSources) {
+      try {
+        setSources(JSON.parse(storedSources));
+      } catch (error) {
+        console.error('Error parsing sources:', error);
+      }
+    }
+  }, []);
+
+  const verifyQuotes = async (draftText: string, transcript: string | null, sourcesStr: string | null) => {
+    try {
+      let sourcesData = [];
+      if (sourcesStr) {
+        sourcesData = JSON.parse(sourcesStr);
+      }
+
+      // Call Supabase Edge Function for AI-powered quote checking
+      const { data, error } = await supabase.functions.invoke('check-quotes', {
+        body: {
+          draft: draftText,
+          transcript: transcript || '',
+          sources: sourcesData
         }
-      } else {
-        // Check against sources (simulated)
-        for (let i = 0; i < savedSources.length; i++) {
-          const sourceItem = savedSources[i];
-          // Simulate source checking - in real app, this would search through actual source content
-          if (quote.includes("innovation") || quote.includes("technology")) {
-            found = true;
-            source = `Supporting Source ${i + 1}`;
-            snippet = `...context from ${sourceItem.name} containing "${quote}"...`;
-            break;
-          }
+      });
+
+      if (error) throw error;
+
+      setQuotes(data.quotes || []);
+    } catch (error) {
+      console.error('Error verifying quotes:', error);
+      // Fallback to simple regex extraction
+      const quoteRegex = /["'](.*?)["']/g;
+      const extractedQuotes: Quote[] = [];
+      let match;
+
+      while ((match = quoteRegex.exec(draftText)) !== null) {
+        const quoteText = match[1];
+        if (quoteText.length > 10) {
+          extractedQuotes.push({
+            text: quoteText,
+            verified: false,
+            source: "Unable to verify"
+          });
         }
       }
-      
-      foundQuotes.push({
-        quote,
-        source,
-        found,
-        snippet: found ? snippet : undefined,
-        lineNumber,
-      });
+
+      setQuotes(extractedQuotes);
     }
-    
-    setQuotes(foundQuotes);
-  }, []);
+  };
 
   // Add source attribution to paragraphs
   const addSourceAttribution = (text: string) => {
@@ -163,11 +162,10 @@ export const ReviewExport = () => {
       },
       keyPoints,
       quotes: quotes.map(q => ({
-        text: q.quote,
-        verified: q.found,
+        text: q.text,
+        verified: q.verified,
         source: q.source,
         snippet: q.snippet,
-        lineNumber: q.lineNumber,
       })),
       draft: {
         content: draft,
@@ -194,8 +192,8 @@ export const ReviewExport = () => {
     navigate("/");
   };
 
-  const verifiedQuotes = quotes.filter(q => q.found);
-  const unverifiedQuotes = quotes.filter(q => !q.found);
+  const verifiedQuotes = quotes.filter(q => q.verified);
+  const unverifiedQuotes = quotes.filter(q => !q.verified);
 
   return (
     <WorkflowLayout title="Review Draft" step={4} totalSteps={4}>
@@ -228,16 +226,15 @@ export const ReviewExport = () => {
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
-                          <p className="text-sm font-medium mb-2">"{quote.quote}"</p>
+                          <p className="text-sm font-medium mb-2">"{quote.text}"</p>
                           <div className="flex items-center gap-2">
-                            {quote.found ? (
+                            {quote.verified ? (
                               <CheckCircle className="w-4 h-4 text-green-600" />
                             ) : (
                               <XCircle className="w-4 h-4 text-red-600" />
                             )}
-                            <Badge variant={quote.found ? "default" : "destructive"}>
+                            <Badge variant={quote.verified ? "default" : "destructive"}>
                               {quote.source}
-                              {quote.lineNumber && ` (Line ${quote.lineNumber})`}
                             </Badge>
                           </div>
                         </div>
@@ -250,7 +247,7 @@ export const ReviewExport = () => {
                         </div>
                       )}
                       
-                      {!quote.found && (
+                      {!quote.verified && (
                         <div className="mt-3 p-3 bg-destructive/10 rounded text-sm">
                           <p className="text-destructive font-medium">Not Found</p>
                           <p className="text-destructive/80 text-xs mt-1">
@@ -282,10 +279,9 @@ export const ReviewExport = () => {
                   <div className="space-y-2">
                     {verifiedQuotes.map((quote, index) => (
                       <div key={index} className="text-sm p-2 bg-green-50 rounded">
-                        <div className="font-medium">"{quote.quote}"</div>
+                        <div className="font-medium">"{quote.text}"</div>
                         <div className="text-xs text-green-700 mt-1">
                           → {quote.source}
-                          {quote.lineNumber && ` (Line ${quote.lineNumber})`}
                         </div>
                       </div>
                     ))}
@@ -302,7 +298,7 @@ export const ReviewExport = () => {
                     <div className="space-y-2">
                       {unverifiedQuotes.map((quote, index) => (
                         <div key={index} className="text-sm p-2 bg-red-50 rounded">
-                          <div className="font-medium">"{quote.quote}"</div>
+                          <div className="font-medium">"{quote.text}"</div>
                           <div className="text-xs text-red-700 mt-1">→ Not Found</div>
                         </div>
                       ))}

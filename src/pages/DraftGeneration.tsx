@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { WorkflowLayout } from "@/components/WorkflowLayout";
 import { Button } from "@/components/ui/button";
@@ -6,56 +6,66 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 
 export const DraftGeneration = () => {
   const [selectedTone, setSelectedTone] = useState("");
   const [customPrompt, setCustomPrompt] = useState("");
   const [generatedDraft, setGeneratedDraft] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [keyPoints, setKeyPoints] = useState<string[]>([]);
   
   const navigate = useNavigate();
 
   const toneOptions = [
-    { value: "neutral", label: "Neutral Explainer" },
-    { value: "excited", label: "Excited Launch Article" },
-    { value: "critical", label: "Critical Analysis" },
+    { value: "professional", label: "Professional" },
+    { value: "conversational", label: "Conversational" },
+    { value: "analytical", label: "Analytical" },
+    { value: "storytelling", label: "Storytelling" },
   ];
 
+  useEffect(() => {
+    // Load key points from localStorage
+    const storedKeyPoints = localStorage.getItem('keyPoints');
+    if (storedKeyPoints) {
+      try {
+        setKeyPoints(JSON.parse(storedKeyPoints));
+      } catch (error) {
+        console.error('Error parsing key points:', error);
+        navigate('/key-points'); // Redirect back if no valid key points
+      }
+    } else {
+      navigate('/key-points'); // Redirect back if no key points found
+    }
+  }, [navigate]);
+
   const handleGenerateDraft = async () => {
-    if (!selectedTone) return;
-    
+    if (!selectedTone || keyPoints.length === 0) {
+      alert("Please select a tone and ensure key points are available.");
+      return;
+    }
+
     setIsGenerating(true);
     
-    // Simulate AI draft generation
-    setTimeout(() => {
-      const simulatedDraft = `# ${getToneTitle(selectedTone)}
+    try {
+      // Call Supabase Edge Function to generate draft using AI
+      const { data, error } = await supabase.functions.invoke('generate-draft', {
+        body: {
+          keyPoints,
+          tone: selectedTone,
+          customPrompt: customPrompt || undefined
+        }
+      });
 
-In a recent interview, key insights were revealed about the upcoming product launch that highlight both opportunities and challenges facing the development team.
+      if (error) throw error;
 
-## User Experience as Core Priority
-
-The development team has placed user experience at the center of their strategy. As noted in the interview, "users should never have to think about how to use our product." This philosophy has guided major design decisions and reflects the company's commitment to intuitive interfaces.
-
-## Budget and Timeline Pressures
-
-The project faces significant constraints that have reshaped the original vision. Budget limitations have forced the team to reduce scope by approximately 30% from the original plan. Additionally, competitive pressure has accelerated the timeline, moving the launch up by two weeks from the initially planned date.
-
-## Beta Testing Results
-
-Customer feedback from the beta testing phase shows promising results, with an 85% satisfaction rate among participants. However, performance issues have emerged as the primary concern, with users reporting slow loading times as the main complaint requiring immediate attention.
-
-## Future Implementation Strategy
-
-Looking ahead, the team has outlined a measured approach to feature rollout. A/B testing will be implemented for the new feature set before full deployment, ensuring that user experience remains optimal while managing risk.
-
-${customPrompt ? `\n## Additional Context\n\n${customPrompt}` : ""}
-
----
-*This draft was generated from interview transcript and supporting materials. All quotes and data points have been sourced from the provided materials.*`;
-
-      setGeneratedDraft(simulatedDraft);
+      setGeneratedDraft(data.draft);
+    } catch (error) {
+      console.error('Error generating draft:', error);
+      alert('Failed to generate draft. Please try again.');
+    } finally {
       setIsGenerating(false);
-    }, 3000);
+    }
   };
 
   const getToneTitle = (tone: string) => {

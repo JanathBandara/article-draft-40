@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Upload, Link, FileText, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type Source = {
   id: string;
@@ -82,16 +83,34 @@ export const ProjectSetup = () => {
     }
 
     setIsProcessing(true);
+    
+    try {
+      // Call Supabase Edge Function to extract key points using AI
+      const { data, error } = await supabase.functions.invoke('extract-key-points', {
+        body: {
+          transcript,
+          sources
+        }
+      });
 
-    // Simulate AI processing
-    setTimeout(() => {
-      // Store the transcript and sources for later use
-      localStorage.setItem("transcript", transcript);
-      localStorage.setItem("sources", JSON.stringify(sources));
+      if (error) throw error;
+
+      // Store data for next steps
+      localStorage.setItem('transcript', transcript);
+      localStorage.setItem('sources', JSON.stringify(sources));
+      localStorage.setItem('extractedKeyPoints', JSON.stringify(data.keyPoints));
       
+      navigate('/key-points');
+    } catch (error) {
+      console.error('Error extracting key points:', error);
+      toast({
+        title: "Error",
+        description: "Failed to extract key points. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsProcessing(false);
-      navigate("/key-points");
-    }, 2000);
+    }
   };
 
   return (

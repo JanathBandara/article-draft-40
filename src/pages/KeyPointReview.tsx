@@ -10,15 +10,21 @@ export const KeyPointReview = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Simulate extracted key points (in real app, this would come from AI)
-    const simulatedKeyPoints = [
-      "The interviewee emphasized the importance of user experience in product development, stating that 'users should never have to think about how to use our product.'",
-      "Budget constraints were mentioned as a major challenge, with the team having to reduce scope by approximately 30% from the original plan.",
-      "The launch timeline has been moved up by two weeks due to competitive pressure in the market.",
-      "Customer feedback from the beta test showed 85% satisfaction rate, with the main complaint being slow loading times.",
-      "The team plans to implement A/B testing for the new feature set before full rollout.",
-    ];
-    setKeyPoints(simulatedKeyPoints);
+    // Load extracted key points from localStorage (set by AI extraction)
+    const extractedKeyPoints = localStorage.getItem('extractedKeyPoints');
+    if (extractedKeyPoints) {
+      try {
+        const keyPointsData = JSON.parse(extractedKeyPoints);
+        setKeyPoints(keyPointsData);
+      } catch (error) {
+        console.error('Error parsing extracted key points:', error);
+        // Fallback to empty array
+        setKeyPoints([]);
+      }
+    } else {
+      // Fallback in case no extracted key points are found
+      setKeyPoints(["No key points extracted. Please go back and try again."]);
+    }
   }, []);
 
   const handleEdit = (index: number, newText: string) => {
