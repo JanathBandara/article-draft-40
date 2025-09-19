@@ -76,7 +76,7 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/c
 
 ------------------------------------------------------------------------------------------------------------------
 
-##Problem Framing & Assumptions
+## Problem Framing & Assumptions
 
 The challenge is to build a 24-hour MVP that transforms an AI-related interview transcript and supporting sources into a story-driven draft article with human-in-the-loop (HITL) controls.
 The problem space requires:
@@ -95,7 +95,7 @@ Assumptions made:
 -	Since I have integrated APIs, all outputs adapt to any new transcript or sources. Therefore, no simulation/mocking is used.
 
 
-##Architecture Description
+## Architecture Description
 
 The solution uses a low-code frontend (Lovable.dev) connected to Supabase Edge Functions, which make calls to OpenAI APIs.
 Flow of the app as follows,
@@ -125,7 +125,7 @@ Flow of the app as follows,
 -	Allows export as Markdown and JSON.
 
 
-##Handling Key-Point Approval, Source Mapping & Quote Checks
+## Handling Key-Point Approval, Source Mapping & Quote Checks
 
 1.	Key-Point Approval:
 -	Extracted automatically by OpenAI (extract-key-points).
@@ -144,7 +144,7 @@ Flow of the app as follows,
 -	Lovable displays results both inline and in a summary list.
 
 
-##Trade-offs & Next Steps
+## Trade-offs & Next Steps
 
 Trade-offs made within 24 hours:
 -	Focused on a Happy Path MVP (single transcript, few sources).
@@ -162,11 +162,11 @@ If given another day, I would:
 -	Optimize costs by batching multiple quotes into a single LLM request.
 
 
-##3-Minute Demo Video
+## 3-Minute Demo Video
 https://drive.google.com/file/d/1TX9rgrIhN6MOPkiCo42_XxUW54NAmclK/view?usp=drive_link 
 
 
-##Sample Inputs
+## Sample Inputs
 -	Interview transcript: https://singjupost.com/transcript-sam-altman-on-agi-gpt-5-and-whats-next-the-openai-podcast-ep-1/
 -	Sources;
 •	https://openai.com/index/introducing-gpt-5-for-developers/
@@ -174,7 +174,7 @@ https://drive.google.com/file/d/1TX9rgrIhN6MOPkiCo42_XxUW54NAmclK/view?usp=drive
 •	https://openai.com/index/gpt-5-new-era-of-work/
 
 
-##A provenance JSON
+## A provenance JSON
 
 https://drive.google.com/file/d/1EfbZEF-H4aH2Jv7SHSKZWUF1k4SKHblo/view?usp=drive_link 
 
