@@ -1,12 +1,14 @@
-# Welcome to your Lovable project
+# Welcome to Lovable project - Article Drafting MVP
 
 ## Project info
+
+This is my submission for the **24-Hour Low-Code Challenge — Article Drafting MVP**. It is a small but functional app that turns an **AI-related interview transcript** plus **supporting sources** into a **story-driven draft article**, with human-in-the-loop controls.
 
 **URL**: https://lovable.dev/projects/ffe84cf4-c645-4553-8512-413488195d48
 
 ## How can I edit this code?
 
-There are several ways of editing your application.
+There are several ways of editing the application.
 
 **Use Lovable**
 
