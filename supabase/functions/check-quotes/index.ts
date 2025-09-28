@@ -108,7 +108,9 @@ ${sourceMaterials}`
             const content = data.choices[0].message.content;
             
             try {
-              const result = JSON.parse(content);
+              // Remove markdown code blocks if present
+              const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
+              const result = JSON.parse(cleanContent);
               verified = result.found;
               source = result.source || 'Unknown';
               snippet = result.snippet || '';
@@ -142,7 +144,7 @@ ${sourceMaterials}`
     });
   } catch (error) {
     console.error('Error in check-quotes function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

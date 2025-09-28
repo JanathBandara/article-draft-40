@@ -94,7 +94,7 @@ The article should be approximately 800-1200 words and include relevant quotes a
     });
   } catch (error) {
     console.error('Error in generate-draft function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
