@@ -1,4 +1,5 @@
 # Welcome to Lovable project - Article Drafting MVP
+This sentence has placed by Janath to check GitHub Desktop commit
 
 ## Project info
 
