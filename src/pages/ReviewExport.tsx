@@ -77,8 +77,8 @@ export const ReviewExport = () => {
       setQuotes(data.quotes || []);
     } catch (error) {
       console.error('Error verifying quotes:', error);
-      // Fallback to simple regex extraction
-      const quoteRegex = /["'](.*?)["']/g;
+      // Fallback to simple regex extraction (handles both straight and curly quotes)
+      const quoteRegex = /["'""''](.*?)["'""'']/g;
       const extractedQuotes: Quote[] = [];
       let match;
 

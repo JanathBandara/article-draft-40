@@ -33,8 +33,8 @@ serve(async (req) => {
 
     console.log('Checking quotes in draft...');
 
-    // Extract quotes using regex
-    const quoteRegex = /["'](.*?)["']/g;
+    // Extract quotes using regex (handles both straight and curly quotes)
+    const quoteRegex = /["'""''](.*?)["'""'']/g;
     const quotes: string[] = [];
     let match;
 
