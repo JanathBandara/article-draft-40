@@ -52,7 +52,7 @@ Make sure to incorporate direct quotes where appropriate and reference supportin
 
     const keyPointsList = keyPoints.map((point: string, index: number) => `${index + 1}. ${point}`).join('\n');
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
