@@ -109,25 +109,12 @@ ${sourceMaterials}`
           if (response.ok) {
             console.log('Gemini API response:', JSON.stringify(data));
 
-            if (!data.candidates || !data.candidates[0]) {
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts) {
               console.error('Unexpected Gemini API response structure:', data);
               throw new Error('Invalid response from Gemini API');
             }
 
-            const candidate = data.candidates[0];
-            
-            // Check for MAX_TOKENS finish reason
-            if (candidate.finishReason === 'MAX_TOKENS') {
-              console.error('Response was cut off due to token limit:', data);
-              throw new Error('Verification response too long');
-            }
-
-            if (!candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
-              console.error('Missing content parts in response:', data);
-              throw new Error('Invalid response structure from Gemini API');
-            }
-
-            const content = candidate.content.parts[0].text;
+            const content = data.candidates[0].content.parts[0].text;
             
             try {
               // Remove markdown code blocks if present
