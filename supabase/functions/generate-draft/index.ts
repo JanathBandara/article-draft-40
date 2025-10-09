@@ -80,12 +80,20 @@ The article should be approximately 800-1200 words and include relevant quotes a
       }),
     });
 
+    const data = await response.json();
+    
     if (!response.ok) {
-      console.error('Gemini API error:', response.status, await response.text());
+      console.error('Gemini API error:', response.status, data);
       throw new Error('Failed to generate draft');
     }
 
-    const data = await response.json();
+    console.log('Gemini API response:', JSON.stringify(data));
+
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts) {
+      console.error('Unexpected Gemini API response structure:', data);
+      throw new Error('Invalid response from Gemini API');
+    }
+
     const draft = data.candidates[0].content.parts[0].text;
 
     console.log('Generated draft length:', draft.length);
