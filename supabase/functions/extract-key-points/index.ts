@@ -57,7 +57,7 @@ Return 5-10 bullet points that would be most valuable for writing an article. Fo
         ],
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 1000,
+          maxOutputTokens: 3000,
         }
       }),
     });
@@ -71,12 +71,25 @@ Return 5-10 bullet points that would be most valuable for writing an article. Fo
 
     console.log('Gemini API response:', JSON.stringify(data));
 
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts) {
+    if (!data.candidates || !data.candidates[0]) {
       console.error('Unexpected Gemini API response structure:', data);
       throw new Error('Invalid response from Gemini API');
     }
 
-    const content = data.candidates[0].content.parts[0].text;
+    const candidate = data.candidates[0];
+    
+    // Check for MAX_TOKENS finish reason
+    if (candidate.finishReason === 'MAX_TOKENS') {
+      console.error('Response was cut off due to token limit:', data);
+      throw new Error('Response too long - try with a shorter transcript or fewer sources');
+    }
+
+    if (!candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
+      console.error('Missing content parts in response:', data);
+      throw new Error('Invalid response structure from Gemini API');
+    }
+
+    const content = candidate.content.parts[0].text;
 
     // Parse the response to extract bullet points
     const keyPoints = content
