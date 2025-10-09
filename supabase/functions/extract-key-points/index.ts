@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,40 +34,41 @@ serve(async (req) => {
       ).join('\n');
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
+        contents: [
           {
-            role: 'system',
-            content: 'You are an expert at extracting key points from interview transcripts. Extract 5-10 clear, concise bullet points that capture the most important insights, quotes, and themes from the transcript. Each bullet point should be specific and actionable for article writing.'
-          },
-          {
-            role: 'user',
-            content: `Please extract the key points from this interview transcript:
+            parts: [
+              {
+                text: `You are an expert at extracting key points from interview transcripts. Extract 5-10 clear, concise bullet points that capture the most important insights, quotes, and themes from the transcript. Each bullet point should be specific and actionable for article writing.
+
+Please extract the key points from this interview transcript:
 
 ${transcript}${sourcesContext}
 
 Return 5-10 bullet points that would be most valuable for writing an article. Focus on unique insights, important quotes, and main themes.`
+              }
+            ]
           }
         ],
-        temperature: 0.3,
-        max_tokens: 1000,
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 1000,
+        }
       }),
     });
 
     if (!response.ok) {
-      console.error('OpenAI API error:', response.status, await response.text());
+      console.error('Gemini API error:', response.status, await response.text());
       throw new Error('Failed to extract key points');
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    const content = data.candidates[0].content.parts[0].text;
 
     // Parse the response to extract bullet points
     const keyPoints = content
