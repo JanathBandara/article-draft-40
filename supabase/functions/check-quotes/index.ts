@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,38 +75,37 @@ serve(async (req) => {
 
       if (sourceMaterials) {
         try {
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
+              'Authorization': `Bearer ${openAIApiKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              contents: [
+              model: 'gpt-4o-mini',
+              messages: [
                 {
-                  parts: [
-                    {
-                      text: `You are a fact-checker. Your job is to verify if a quote appears in the provided source materials. Return a JSON response with: {"found": boolean, "source": string, "snippet": string}. If found, provide the source name and a snippet of surrounding context (50-100 words). If not found, set found to false.
-
-Please verify if this quote appears in the source materials:
+                  role: 'system',
+                  content: 'You are a fact-checker. Your job is to verify if a quote appears in the provided source materials. Return a JSON response with: {"found": boolean, "source": string, "snippet": string}. If found, provide the source name and a snippet of surrounding context (50-100 words). If not found, set found to false.'
+                },
+                {
+                  role: 'user',
+                  content: `Please verify if this quote appears in the source materials:
 
 QUOTE TO VERIFY: "${quote}"
 
 SOURCE MATERIALS:
 ${sourceMaterials}`
-                    }
-                  ]
                 }
               ],
-              generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 300,
-              }
+              temperature: 0.1,
+              max_tokens: 300,
             }),
           });
 
           if (response.ok) {
             const data = await response.json();
-            const content = data.candidates[0].content.parts[0].text;
+            const content = data.choices[0].message.content;
             
             try {
               // Remove markdown code blocks if present
