@@ -24,7 +24,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Extracting key points from transcript:', transcript.substring(0, 100) + '...');
+    console.log('Extracting key points from transcript (streaming mode):', transcript.substring(0, 100) + '...');
 
     // Prepare sources context if available
     let sourcesContext = '';
@@ -34,7 +34,7 @@ serve(async (req) => {
       ).join('\n');
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -62,43 +62,76 @@ Return 5-10 bullet points that would be most valuable for writing an article. Fo
       }),
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      console.error('Gemini API error:', response.status, data);
-      throw new Error('Failed to extract key points');
+      const errorText = await response.text();
+      console.error('Gemini API error:', response.status, errorText);
+      return new Response(JSON.stringify({ error: 'Failed to extract key points' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log('Gemini API response:', JSON.stringify(data));
+    // Create a streaming response
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
 
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      console.error('Unexpected Gemini API response structure:', data);
-      throw new Error('Invalid response from Gemini API');
-    }
+          if (!reader) {
+            controller.close();
+            return;
+          }
 
-    const candidate = data.candidates[0];
-    if (candidate.finishReason === 'MAX_TOKENS') {
-      console.warn('Response truncated due to token limit');
-    }
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              if (buffer.trim()) {
+                controller.enqueue(new TextEncoder().encode(`data: ${buffer}\n\n`));
+              }
+              controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+              controller.close();
+              break;
+            }
 
-    if (!candidate.content.parts || !candidate.content.parts[0]) {
-      console.error('Missing parts in Gemini response:', data);
-      throw new Error('Incomplete response from Gemini API');
-    }
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-    const content = candidate.content.parts[0].text;
+            for (const line of lines) {
+              if (line.trim() === '') continue;
+              
+              try {
+                const jsonStr = line.replace(/^data: /, '').trim();
+                if (jsonStr && jsonStr !== '[DONE]') {
+                  const data = JSON.parse(jsonStr);
+                  
+                  if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    const text = data.candidates[0].content.parts[0].text;
+                    controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ text })}\n\n`));
+                  }
+                }
+              } catch (parseError) {
+                console.error('Error parsing chunk:', parseError);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error in stream:', error);
+          controller.error(error);
+        }
+      }
+    });
 
-    // Parse the response to extract bullet points
-    const keyPoints = content
-      .split('\n')
-      .filter((line: string) => line.trim().match(/^[-•*]\s+/) || line.trim().match(/^\d+\.\s+/))
-      .map((line: string) => line.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim())
-      .filter((point: string) => point.length > 0);
-
-    console.log('Extracted key points:', keyPoints);
-
-    return new Response(JSON.stringify({ keyPoints }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(stream, {
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
     });
   } catch (error) {
     console.error('Error in extract-key-points function:', error);

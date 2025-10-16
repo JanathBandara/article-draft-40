@@ -85,20 +85,78 @@ export const ProjectSetup = () => {
     setIsProcessing(true);
     
     try {
-      // Call Supabase Edge Function to extract key points using AI
-      const { data, error } = await supabase.functions.invoke('extract-key-points', {
-        body: {
-          transcript,
-          sources
+      const response = await fetch(
+        `https://caafbktgwdltioctdued.supabase.co/functions/v1/extract-key-points`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhYWZia3Rnd2RsdGlvY3RkdWVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgxNjk2OTcsImV4cCI6MjA3Mzc0NTY5N30.UXNxdc4S2O4uKxxpd7UcxmlZ6QbDloSap6aStGeezPs'}`,
+          },
+          body: JSON.stringify({
+            transcript,
+            sources
+          }),
         }
-      });
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to extract key points');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+            
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.text) {
+                fullText += parsed.text;
+              }
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
+            }
+          }
+        }
+      }
+
+      // Parse the complete response to extract bullet points
+      const keyPoints = fullText
+        .split('\n')
+        .filter((line: string) => line.trim().match(/^[-•*]\s+/) || line.trim().match(/^\d+\.\s+/))
+        .map((line: string) => line.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim())
+        .filter((point: string) => point.length > 0);
+
+      if (keyPoints.length === 0) {
+        throw new Error('No key points extracted');
+      }
 
       // Store data for next steps
       localStorage.setItem('transcript', transcript);
       localStorage.setItem('sources', JSON.stringify(sources));
-      localStorage.setItem('extractedKeyPoints', JSON.stringify(data.keyPoints));
+      localStorage.setItem('extractedKeyPoints', JSON.stringify(keyPoints));
+      
+      toast({
+        title: "Success",
+        description: `Extracted ${keyPoints.length} key points from transcript.`,
+      });
       
       navigate('/key-points');
     } catch (error) {
