@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,40 +52,57 @@ Make sure to incorporate direct quotes where appropriate and reference supportin
 
     const keyPointsList = keyPoints.map((point: string, index: number) => `${index + 1}. ${point}`).join('\n');
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: `Please write a comprehensive article based on these key points:
+        contents: [{
+          role: 'user',
+          parts: [{
+            text: `Please write a comprehensive article based on these key points:
 
 ${keyPointsList}
 
 The article should be approximately 800-1200 words and include relevant quotes and insights from the key points. Make it engaging and informative for readers.`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
+          }]
+        }],
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4000,
+        }
       }),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      console.error('OpenAI API error:', response.status, await response.text());
+      console.error('Gemini API error:', response.status, data);
       throw new Error('Failed to generate draft');
     }
 
-    const data = await response.json();
-    const draft = data.choices[0].message.content;
+    console.log('Gemini API response:', JSON.stringify(data));
+
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('Unexpected Gemini API response structure:', data);
+      throw new Error('Invalid response from Gemini API');
+    }
+
+    const candidate = data.candidates[0];
+    if (candidate.finishReason === 'MAX_TOKENS') {
+      console.warn('Response truncated due to token limit');
+    }
+
+    if (!candidate.content.parts || !candidate.content.parts[0]) {
+      console.error('Missing parts in Gemini response:', data);
+      throw new Error('Incomplete response from Gemini API');
+    }
+
+    const draft = candidate.content.parts[0].text;
 
     console.log('Generated draft length:', draft.length);
 
