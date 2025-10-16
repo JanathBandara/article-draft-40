@@ -34,7 +34,7 @@ serve(async (req) => {
       ).join('\n');
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${geminiApiKey}&alt=sse`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -64,8 +64,9 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Gemini API error:', response.status, errorText);
-      return new Response(JSON.stringify({ error: 'Failed to extract key points' }), {
-        status: 500,
+      // ADD THIS RETURN STATEMENT
+      return new Response(JSON.stringify({ error: 'Failed to fetch from Gemini API', details: errorText }), {
+        status: response.status, // Pass along the original error code
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
